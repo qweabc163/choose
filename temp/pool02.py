@@ -33,6 +33,10 @@ A股趋势策略：指定日期股票池未来走势分析 + 动态卖出验证
     python pool.py --date 2026-04-30 --days 30 --min-hold-days 3
     python pool.py --date 2026-04-30 --days 30 --exit-sell-timing next_open
     python pool.py --date 2026-04-30 --days 30 --stop-loss -0.06 --trailing-start 0.12 --trailing-drawdown 0.07
+
+-------------
+    python pool.py --date 2026-04-30 --days 30
+
 """
 
 import os

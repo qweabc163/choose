@@ -15,6 +15,9 @@ A股趋势策略：指定日期股票分类 + 未来走势回测 + 动态卖出�
 8. 支持固定持有 N 日验证；
 9. 支持动态卖出验证；
 10. 输出 Excel。
+
+
+ python pool03.py --date 2026-04-30 --classify-only
 """
 
 import os
@@ -747,7 +750,7 @@ def preload_all_stock_data(codes: List[str]) -> Dict[str, pd.DataFrame]:
                 continue
 
             required_price_cols = ["open", "high", "low", "close", "amount"]
- missing_cols = [c for c in required_price_cols if c not in df.columns]
+            missing_cols = [c for c in required_price_cols if c not in df.columns]
 
             if missing_cols:
                 invalid_count += 1
@@ -1560,7 +1563,7 @@ def build_dynamic_exit_reason_summary(dynamic_exit_df: pd.DataFrame) -> pd.DataF
 # ==============================
 
 def get_key_horizons(forward_days: int) -> List[int]:
-    base = [1, 3, 5, 10, 20, 30 60]
+    base = [1, 3, 5, 10, 20, 30, 60]
     return [h for h in base if h <= forward_days]
 
 
@@ -1864,7 +1867,6 @@ def save_classification_excel(
             else:
                 style_worksheet(ws, freeze="A2", apply_red_green=True)
 
-
 def analyze_pool_classification(
     signal_date: pd.Timestamp,
     stock_data: Dict[str, pd.DataFrame],
@@ -1905,19 +1907,23 @@ def analyze_pool_classification(
         f"{CLASSIFICATION_OUTPUT_PREFIX}_{signal_date.strftime('%Y-%m-%d')}.csv",
     )
 
+    # === Excel 保存 ===
     try:
         save_classification_excel(
             output_xlsx=output_xlsx,
             signal_date=signal_date,
             pool_df=pool_df,
         )
-
         print(f"\n分类结果 Excel 已保存到：{output_xlsx}")
-
     except Exception as e:
         print(f"保存分类 Excel 失败：{e}")
+
+    # === CSV 保存（独立 try，确保无论 Excel 是否成功都会执行） ===
+    try:
         pool_df.to_csv(output_csv, index=False, encoding="utf-8-sig")
-        print(f"已改为保存 CSV：{output_csv}")
+        print(f"分类结果 CSV 已保存到：{output_csv}")
+    except Exception as e:
+        print(f"保存分类 CSV 失败：{e}")
 
     summary_df = build_classification_summary(pool_df)
 
@@ -1957,6 +1963,98 @@ def analyze_pool_classification(
         }))
     else:
         print("\n指定日期没有股票进入 强趋势池 / 趋势观察池。")
+# def analyze_pool_classification(
+#     signal_date: pd.Timestamp,
+#     stock_data: Dict[str, pd.DataFrame],
+#     bench_df: pd.DataFrame,
+#     code_name_map: Dict[str, str],
+# ) -> None:
+#     signal_date = pd.Timestamp(signal_date).normalize()
+
+#     print("\n========== 指定日期股票分类 ==========")
+#     print(f"信号日期: {signal_date.date()}")
+#     print("功能: 仅分类，不计算未来收益")
+#     print("====================================")
+
+#     pool_df = build_pool_on_date(
+#         signal_date=signal_date,
+#         stock_data=stock_data,
+#         bench_df=bench_df,
+#         code_name_map=code_name_map,
+#     )
+
+#     if pool_df is None or pool_df.empty:
+#         print("指定日期未能构建股票分类结果。可能原因：")
+#         print("1. 该日期不是交易日；")
+#         print("2. 本地数据不足；")
+#         print("3. 当天股票没有交易数据；")
+#         print("4. 指标窗口不足。")
+#         return
+
+#     os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+#     output_xlsx = os.path.join(
+#         OUTPUT_DIR,
+#         f"{CLASSIFICATION_OUTPUT_PREFIX}_{signal_date.strftime('%Y-%m-%d')}.xlsx",
+#     )
+
+#     output_csv = os.path.join(
+#         OUTPUT_DIR,
+#         f"{CLASSIFICATION_OUTPUT_PREFIX}_{signal_date.strftime('%Y-%m-%d')}.csv",
+#     )
+
+#     try:
+#         save_classification_excel(
+#             output_xlsx=output_xlsx,
+#             signal_date=signal_date,
+#             pool_df=pool_df,
+#         )
+
+#         print(f"\n分类结果 Excel 已保存到：{output_xlsx}")
+
+#     except Exception as e:
+#         print(f"保存分类 Excel 失败：{e}")
+#         pool_df.to_csv(output_csv, index=False, encoding="utf-8-sig")
+#         print(f"已改为保存 CSV：{output_csv}")
+
+#     summary_df = build_classification_summary(pool_df)
+
+#     if not summary_df.empty:
+#         print("\n========== 分类统计 ==========")
+#         print(summary_df.to_string(index=False, formatters={
+#             "占比": "{:.2%}".format,
+#             "平均评分": "{:.2f}".format,
+#             "最高评分": "{:.2f}".format,
+#             "平均20日涨幅": "{:.2%}".format,
+#             "平均60日涨幅": "{:.2%}".format,
+#             "平均20日成交额": "{:,.0f}".format,
+#             "平均量能比": "{:.2f}".format,
+#             "平均20日最大回撤": "{:.2%}".format,
+#         }))
+
+#     selected_df = pool_df[pool_df["status"].isin(["强趋势池", "趋势观察池"])].copy()
+#     selected_df = selected_df.sort_values("score", ascending=False).reset_index(drop=True)
+
+#     if not selected_df.empty:
+#         preview_cols = [
+#             "code", "name", "status", "score",
+#             "ret20", "ret60", "amount_ma20",
+#             "amount_ratio_5_20", "max_dd20", "dist_to_60d_high",
+#         ]
+
+#         preview_cols = [c for c in preview_cols if c in selected_df.columns]
+
+#         print("\n========== 强趋势池 / 趋势观察池预览 ==========")
+#         print(selected_df[preview_cols].head(30).to_string(index=False, formatters={
+#             "ret20": "{:.2%}".format,
+#             "ret60": "{:.2%}".format,
+#             "amount_ma20": "{:,.0f}".format,
+#             "amount_ratio_5_20": "{:.2f}".format,
+#             "max_dd20": "{:.2%}".format,
+#             "dist_to_60d_high": "{:.2%}".format,
+#         }))
+#     else:
+#         print("\n指定日期没有股票进入 强趋势池 / 趋势观察池。")
 
 
 # ==============================
@@ -2243,7 +2341,7 @@ def save_friendly_excel(
     forward_days: int,
     dynamic_exit_df: Optional[pd.DataFrame] = None,
     dynamic_exit_summary_df: Optional[pd.DataFrame] = None,
-    dynamic_exit_reason_df: Optional[pdFrame] = None,
+    dynamic_exit_reason_df: Optional[pd.DataFrame] = None,
 ) -> None:
     stock_rows = detail_df[detail_df["row_type"] == "stock"].copy()
 
@@ -2267,7 +2365,7 @@ def save_friendly_excel(
             dashboard_rows.append([f"D{h}平均超额收益", r["avg_excess"], "固定持有平均收益 - 沪深300"])
 
     if dynamic_exit_summary_df is not None and not dynamic_exit_summary_df.empty:
-        all_row = dynamic_exit_summary_df[dyn,amic_exit_summary_df["group"] == "全部"]
+        all_row = dynamic_exit_summary_df[dynamic_exit_summary_df["group"] == "全部"]
 
         if not all_row.empty:
             r = all_row.iloc[0]
