@@ -603,7 +603,7 @@ def calc_score(row: pd.Series, bench_ret20: float, bench_ret60: float) -> int:
             score_risk += 3
         elif max_dd20 > -0.20:
             score_risk += 1
-            
+
     if not pd.isna(atr20_pct):
         if atr20_pct <= 0.035:
             score_risk += 3
@@ -1309,6 +1309,84 @@ def build_score_change_rank_df(pool_df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+def build_short_start_rank_df(pool_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    短线启动观察榜单。
+    筛选 short_term_start == True 的股票，并按评分动量排序。
+    """
+
+    if pool_df is None or pool_df.empty:
+        return pd.DataFrame()
+
+    if "short_term_start" not in pool_df.columns:
+        return pd.DataFrame()
+
+    df = pool_df[pool_df["short_term_start"] == True].copy()
+
+    if df.empty:
+        return pd.DataFrame()
+
+    sort_cols = []
+    ascending = []
+
+    for col in [
+        "score_momentum",
+        "score_change_5d",
+        "score_change_3d",
+        "score_change_1d",
+        "score",
+        "rs_slope_20",
+    ]:
+        if col in df.columns:
+            sort_cols.append(col)
+            ascending.append(False)
+
+    if sort_cols:
+        df = df.sort_values(sort_cols, ascending=ascending).reset_index(drop=True)
+    elif "score" in df.columns:
+        df = df.sort_values("score", ascending=False).reset_index(drop=True)
+
+    return df
+
+
+def build_status_upgrade_rank_df(pool_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    状态升级观察榜单。
+    筛选 status_upgrade == True 的股票，并按评分动量排序。
+    """
+
+    if pool_df is None or pool_df.empty:
+        return pd.DataFrame()
+
+    if "status_upgrade" not in pool_df.columns:
+        return pd.DataFrame()
+
+    df = pool_df[pool_df["status_upgrade"] == True].copy()
+
+    if df.empty:
+        return pd.DataFrame()
+
+    sort_cols = []
+    ascending = []
+
+    for col in [
+        "score_momentum",
+        "score_change_5d",
+        "score_change_3d",
+        "score_change_1d",
+        "score",
+        "rs_slope_20",
+    ]:
+        if col in df.columns:
+            sort_cols.append(col)
+            ascending.append(False)
+
+    if sort_cols:
+        df = df.sort_values(sort_cols, ascending=ascending).reset_index(drop=True)
+    elif "score" in df.columns:
+        df = df.sort_values("score", ascending=False).reset_index(drop=True)
+
+    return df
 
 def build_short_start_df(pool_df: pd.DataFrame) -> pd.DataFrame:
     if pool_df is None or pool_df.empty:
